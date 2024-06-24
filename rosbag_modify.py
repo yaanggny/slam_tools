@@ -20,6 +20,7 @@ def get_all_topics(bag_file):
             if topic not in topics:
                 topics.append(topic)
     print(topics)
+    return topics
 
 
 def main():
@@ -34,7 +35,7 @@ def main():
     assert opath.exists(inputfile), inputfile
     outputfile = args.output_bag
 
-    dt = 1/1000*1e9  # 1ms in ns
+    dt = 2/1000*1e9  # 1ms in ns
 
     print(args)
 
@@ -49,17 +50,25 @@ def main():
         c = 0
         to_fix = topic_ in topics_to_fix
         N_imu = 100
-        MIN_STEP = 20 if 'image' in topic_ else N_imu
-
-        for topic, msg, t in tqdm(bag_reader.read_messages(topics=topic_), ncols=80, desc=f'Fix timestamps {topic_} {MIN_STEP} '):
+        MIN_STEP = 8 if 'image' in topic_ else N_imu
+        desc = f'Fix timestamps {topic_} {MIN_STEP} ' if to_fix else f'Copy timestamps {topic_} '
+        for topic, msg, t in tqdm(bag_reader.read_messages(topics=topic_), ncols=80, desc=desc):
             # print(msg)
 
             t0 = msg.header.stamp
             STEP = MIN_STEP # random.randint(MIN_STEP, 12)
+            # STEP = random.randint(MIN_STEP, MIN_STEP + 8)
+
+            dt_min = 1e5
+            dt_max = dt
+            if 'image' in topic_:
+                dt_min = 2/1000*1e9
+                dt_max = 30/1000*1e9
+
             if to_fix and c % STEP == 0:
-                # msg.header.stamp = rospy.Time(secs=t0.secs, nsecs=int(t0.nsecs + random.randint(1e5, dt)))
-                k = 3 if c % 2 == 0 else -2
-                msg.header.stamp = rospy.Time(secs=t0.secs, nsecs=int(t0.nsecs + k*dt))
+                msg.header.stamp = rospy.Time(secs=t0.secs, nsecs=int(t0.nsecs + random.randint(dt_min, dt_max)))
+                # k = 3 if c % 2 == 0 else -2
+                # msg.header.stamp = rospy.Time(secs=t0.secs, nsecs=int(t0.nsecs + k*dt))
             # print(msg)
             # sys.exit(0)
             # print(topic, t0.to_sec() - msg.header.stamp.to_sec())
